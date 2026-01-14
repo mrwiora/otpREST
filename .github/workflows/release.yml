@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Build binaries
+        run: |
+          # Build for Linux x64
+          GOOS=linux GOARCH=amd64 go build -o otpREST-linux-amd64 main.go
+          
+          # Build for Windows x64
+          GOOS=windows GOARCH=amd64 go build -o otpREST-windows-amd64.exe main.go
+          
+          # Build for macOS x64
+          GOOS=darwin GOARCH=amd64 go build -o otpREST-darwin-amd64 main.go
+
+      - name: Create Release and Upload Assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ steps.get_version.outputs.VERSION }} \
+            --title "Release ${{ steps.get_version.outputs.VERSION }}" \
+            --generate-notes \
+            otpREST-linux-amd64 \
+            otpREST-windows-amd64.exe \
+            otpREST-darwin-amd64
